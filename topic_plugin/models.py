@@ -2,10 +2,12 @@ import mongoengine
 from marvinbot.utils import localized_date
 
 class Subtopic(mongoengine.Document):
+    chat_id = mongoengine.LongField(required=True)
+
     text = mongoengine.StringField(required=True)
 
     user_id = mongoengine.LongField(required=True)
-    username = mongoengine.StringField(required=True)
+    username = mongoengine.StringField()
 
     date_added = mongoengine.DateTimeField(default=localized_date)
     date_modified = mongoengine.DateTimeField(default=localized_date)
@@ -21,6 +23,9 @@ class Topic(mongoengine.Document):
     subtopics = mongoengine.ListField(mongoengine.ReferenceField(Subtopic))
 
     separator = mongoengine.StringField(default=' | ')
+
+    user_id = mongoengine.LongField(required=True)
+    username = mongoengine.StringField()
 
     date_added = mongoengine.DateTimeField(default=localized_date)
     date_modified = mongoengine.DateTimeField(default=localized_date)
