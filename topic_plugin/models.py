@@ -13,6 +13,12 @@ class Subtopic(mongoengine.Document):
     date_modified = mongoengine.DateTimeField(default=localized_date)
     date_deleted = mongoengine.DateTimeField(required=False, null=True)
 
+    def __repr__(self):
+        return self.text
+
+    def __str__(self):
+        return self.__repr__()
+
 class Topic(mongoengine.Document):
     id = mongoengine.SequenceField(primary_key=True)
 
@@ -20,7 +26,7 @@ class Topic(mongoengine.Document):
 
     text = mongoengine.StringField(required=True)
 
-    subtopics = mongoengine.ListField(mongoengine.ReferenceField(Subtopic))
+    subtopics = mongoengine.ListField(mongoengine.ReferenceField(Subtopic, reverse_delete_rule=mongoengine.PULL))
 
     separator = mongoengine.StringField(default=' | ')
 
@@ -45,3 +51,8 @@ class Topic(mongoengine.Document):
         except cls.DoesNotExist:
             return None
 
+    def __repr__(self):
+        return self.text if len(self.subtopics) == 0 else '{}{}{}'.format(self.text, self.separator, self.separator.join(subtopic.text for subtopic in self.subtopics))
+
+    def __str__(self):
+        return self.__repr__()

@@ -32,8 +32,7 @@ class TopicPlugin(Plugin):
                          .add_argument('--push', help='Push a subtopic onto the end', action='store_true')
                          .add_argument('--shift', help='Shift the subtopic from the beginning', action='store_true')
                          .add_argument('--unshift', help='Prepend a subtopic to the beginning', action='store_true')
-                         .add_argument('--fix', help='Fix chat title', action='store_true')
-                         .add_argument('--pop-all', help='Remove all subtopics', action='store_true'))
+                         .add_argument('--fix', help='Fix chat title', action='store_true'))
 
         # TODO: Fix chat topic is somebody else sets something
         self.add_handler(MessageHandler([CommonFilters.status_update.new_chat_title], self.on_new_chat_title))
@@ -54,19 +53,14 @@ class TopicPlugin(Plugin):
     def on_left_chat_member(self, update):
         if update.effective_message.left_chat_member.id == self.adapter.bot_info.id:
             topic = self.get_topic(update.effective_chat.id)
-            if topic is not None:
+            if topic:
+                for subtopic in topic.subtopics:
+                    subtopic.delete()
                 topic.delete()
 
     def set_chat_title_from_topic(self, topic):
-        text = topic.text
-        separator = topic.separator
-        subtopics = separator.join([subtopic.text for subtopic in topic.subtopics])
-        log.debug('Subtopics:',str(topic.subtopics))
-        if (len(topic.subtopics)):
-            text = "{}{}{}".format(text, separator, subtopics)
-
         try:
-            self.adapter.bot.setChatTitle(chat_id=topic.chat_id, title=topic.text)
+            self.adapter.bot.setChatTitle(chat_id=topic.chat_id, title=str(topic))
             return True
         except BadRequest as ex:
             self.adapter.bot.sendMessage(chat_id=topic.chat_id, text="❌ {}".format(ex))
@@ -102,14 +96,12 @@ class TopicPlugin(Plugin):
             return topic
 
     def on_subtopic_pop(self, chat_id, topic):
-        self.adapter.bot.sendMessage(chat_id=chat_id, text="⚠ Should pop the subtopic off the end")
         subtopic = topic.subtopics.pop()
         subtopic.delete()
         if self.set_chat_title_from_topic(topic):
             topic.save()
 
     def on_subtopic_push(self, chat_id, topic, subtopic_text, user_id, username):
-        self.adapter.bot.sendMessage(chat_id=chat_id, text="⚠ Should push a subtopic onto the end with text {}".format(subtopic_text))
         config = {
             "chat_id": chat_id,
             "text": subtopic_text,
@@ -124,14 +116,12 @@ class TopicPlugin(Plugin):
             topic.save(cascade=True)
 
     def on_subtopic_shift(self, chat_id, topic):
-        self.adapter.bot.sendMessage(chat_id=chat_id, text="⚠ Should shift the subtopic from the beginning")
-        subtopic = topic.subtopics[1:]
+        subtopic = topic.subtopics.pop(0)
         if self.set_chat_title_from_topic(topic):
             topic.save()
             subtopic.delete()
 
     def on_subtopic_unshift(self, chat_id, topic, subtopic_text, user_id, username):
-        self.adapter.bot.sendMessage(chat_id=chat_id, text="⚠ Should prepend a subtopic to the beginning with text {}".format(subtopic_text))
         config = {
             "chat_id": chat_id,
             "text": subtopic_text,
@@ -144,16 +134,6 @@ class TopicPlugin(Plugin):
         if self.set_chat_title_from_topic(topic):
             subtopic.save()
             subtopic.save(cascade=True)
-
-    def on_subtopic_pop_all(self, chat_id, topic):
-        self.adapter.bot.sendMessage(chat_id=chat_id, text="⚠ Should remove all subtopics")
-        subtopics = topic.subtopics
-        topic.subtopics = []
-        if self.set_chat_title_from_topic(topic):
-            topic.save()
-            for subtopic in subtopics:
-                subtopic.delete()
-
 
     def on_topic_command(self, update, *args, **kwargs):
         message = update.effective_message
